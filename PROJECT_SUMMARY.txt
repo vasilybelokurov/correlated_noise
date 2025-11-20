@@ -1,0 +1,68 @@
+================================================================================
+CORRELATED NOISE PROJECT - REORGANIZATION COMPLETE
+================================================================================
+
+PROJECT STRUCTURE:
+─────────────────
+correlated_noise/
+├── README.md                          ← Updated with plots/ folder info
+├── PROJECT_SUMMARY.txt                ← This file
+├── CLAUDE.md                          ← Project context
+│
+├── PYTHON SCRIPTS (5):
+│   ├── demo.py                        ← Basic demo (N=50)
+│   ├── demo_plots.py                  ← Single realization + 4 plots
+│   ├── monte_carlo.py                 ← 100 realizations + 2 plots (simple)
+│   ├── multigroup_demo.py             ← Multi-group example (N=100) + 5 plots
+│   └── multigroup_monte_carlo.py      ← Multi-group 100 realizations + 2 plots
+│
+└── plots/ (13 PNG files)
+    ├── SIMPLE COVARIANCE EXAMPLE:
+    │   ├── fig_fits.png               ← Data + fits with 1σ bands
+    │   ├── fig_ellipses.png           ← Parameter confidence ellipses
+    │   ├── fig_residuals.png          ← Residuals + covariance matrices
+    │   ├── fig_chisq.png              ← χ²/dof comparison
+    │   ├── fig_mc_distributions.png   ← Parameter distributions (100 runs)
+    │   └── fig_mc_chisq.png           ← χ²/dof distributions
+    │
+    └── MULTI-GROUP EXAMPLE:
+        ├── fig_multigroup_fits.png            ← Data (colored blocks) + fits
+        ├── fig_multigroup_covariance.png      ← Block-diagonal structure
+        ├── fig_multigroup_residuals.png       ← Residuals comparison
+        ├── fig_multigroup_chisq.png           ← χ²/dof bar chart
+        ├── fig_multigroup_table.png           ← Parameter table summary
+        ├── fig_multigroup_mc_distributions.png ← Parameter distributions (100 runs)
+        └── fig_multigroup_mc_chisq.png        ← χ²/dof distributions
+
+CHANGES MADE:
+─────────────
+✓ Created plots/ directory
+✓ Updated all 5 Python scripts to save plots to plots/ subdirectory
+✓ Moved 13 existing PNG files from root to plots/
+✓ Updated README.md with:
+  - New Project Structure section
+  - Updated plot paths (plots/fig_*.png)
+  - Clear organization of single vs multi-group examples
+
+QUICK START:
+─────────────
+source ~/Work/venvs/.venv/bin/activate
+
+# Single realization (simple example)
+python demo_plots.py          # Generates 4 plots in plots/
+
+# Multi-group example (primary demonstration)
+python multigroup_demo.py     # Generates 5 plots in plots/
+
+# Monte Carlo studies (100 realizations each)
+python monte_carlo.py         # Generates 2 additional plots in plots/
+python multigroup_monte_carlo.py  # Generates 2 additional plots in plots/
+
+All plots automatically save to: ./plots/
+
+ROOT DIRECTORY (CLEAN):
+──────────────────────
+All PNG files removed from root (now in plots/)
+Only Python scripts, README, and configuration files remain in root
+
+================================================================================
