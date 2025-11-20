@@ -246,7 +246,9 @@ A = np.vstack([np.sin(x), np.cos(x), np.ones_like(x)]).T
 
 **See the effect immediately:**
 ```bash
-source ~/Work/venvs/.venv/bin/activate
+# Activate your Python virtual environment (adjust path as needed)
+source venv/bin/activate
+
 python multigroup_demo.py
 # Outputs: 5 figures, ~1 sec runtime
 ```
