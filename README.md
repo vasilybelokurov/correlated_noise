@@ -8,26 +8,32 @@ This project demonstrates the **critical importance of accounting for correlated
 
 ```
 correlated_noise/
-├── README.md                       (this file)
-├── demo.py                         (simple example, N=50)
-├── demo_plots.py                   (single realization + 4 plots)
-├── monte_carlo.py                  (100 realizations + 2 plots)
-├── multigroup_demo.py              (multi-group example, N=100)
-├── multigroup_monte_carlo.py       (100 realizations + 2 plots)
-└── plots/                          (all generated PNG figures)
-    ├── fig_fits.png
-    ├── fig_ellipses.png
-    ├── fig_residuals.png
-    ├── fig_chisq.png
-    ├── fig_mc_distributions.png
-    ├── fig_mc_chisq.png
-    ├── fig_multigroup_fits.png
-    ├── fig_multigroup_covariance.png
-    ├── fig_multigroup_residuals.png
-    ├── fig_multigroup_chisq.png
-    ├── fig_multigroup_table.png
-    ├── fig_multigroup_mc_distributions.png
-    └── fig_multigroup_mc_chisq.png
+├── README.md                            (this file)
+│
+├── Part 1: Model Fitting with Correlated Noise
+├── demo.py                              (simple example, N=50)
+├── demo_plots.py                        (single realization + 4 plots)
+├── monte_carlo.py                       (100 realizations + 2 plots)
+├── multigroup_demo.py                   (multi-group example, N=100)
+├── multigroup_monte_carlo.py            (100 realizations + 2 plots)
+│
+├── Part 2: Bootstrap SF Covariance Estimation (NEW)
+├── mock_sf_covariance.py                (epoch bootstrap: baseline/reference)
+├── mock_sf_covariance_v2.py             (epoch + block bootstrap implementation)
+├── test_block_bootstrap.py              (comparison & validation with plots)
+├── test_block_size_sensitivity.py       (sensitivity study for optimal B)
+├── plot_bootstrap_diagnostics.py        (diagnostic plotting utilities)
+├── BOOTSTRAP_ANALYSIS.md                (70+ page technical reference)
+├── BLOCK_BOOTSTRAP_GUIDE.md             (quick reference for implementation)
+│
+└── plots/                               (all generated PNG figures)
+    ├── [Part 1 plots]
+    ├── fig_fits.png, fig_ellipses.png, fig_residuals.png, etc.
+    │
+    └── [Bootstrap validation plots]
+        ├── fig_boot_*.png               (epoch bootstrap baseline, 6 plots)
+        ├── fig_block_*.png              (epoch vs. block comparison, 6 plots)
+        └── fig_sensitivity_*.png        (block size study, 3 plots)
 ```
 
 ## Overview
@@ -103,9 +109,80 @@ This means **nominal 1σ confidence intervals from naive method are overly confi
 
 ---
 
+## Part 2: Bootstrap SF Covariance Estimation (NEW)
+
+### Motivation
+
+When analyzing time series data (e.g., quasar lightcurves), we often estimate covariance of the structure function (SF) via **bootstrap resampling**. However, naive epoch bootstrap—resampling individual observations with replacement—fails catastrophically for correlated data.
+
+### Key Finding: Epoch Bootstrap Fails
+
+Testing on mock data with DRW (damped random walk) lightcurves:
+
+| Metric | Epoch Bootstrap | Issue |
+|--------|---|---|
+| Lag-0 variance | **6.5×** true value | Massive overestimate |
+| Variance RMSE | 0.0516 | Poor across all lags |
+| Correlation structure | Completely random | No recovery of true patterns |
+| Root cause | Resampling creates duplicate epochs → spurious zero-lag pairs | Destroys temporal structure |
+
+### Solution: Block Bootstrap
+
+Replace epoch bootstrap with **block bootstrap** (resample contiguous blocks of observations instead of individual epochs):
+
+| Metric | Block (B=40) | Target | Status |
+|--------|---|---|---|
+| Lag-0 variance | **1.32×** true value | <1.5× | ✓ PASS |
+| Variance RMSE | 0.0110 | <0.020 | ✓ PASS |
+| Improvement vs. epoch | **4.9×** | >2× | ✓ PASS |
+| Correlation structure | Recovered | Smooth decay | ✓ PASS |
+
+**Block size selection:** Use formula $B = N_{\text{epoch}} \times (\tau_{\max} / T_{\text{baseline}})$ or run sensitivity study (see scripts).
+
+### Scripts & Documentation
+
+**Implementation:**
+```python
+from mock_sf_covariance_v2 import bootstrap_sf_covariance_block
+
+B = 40  # or choose via sensitivity study
+cov_boot, mean_A, A_boot = bootstrap_sf_covariance_block(
+    times, mags, lags, lag_width, n_bootstrap=500, rng, block_size=B
+)
+```
+
+**Validation scripts:**
+- `test_block_size_sensitivity.py` — Find optimal B for your data (tests B ∈ {5, 10, 15, ..., 40})
+- `test_block_bootstrap.py` — Detailed comparison of epoch vs. block with 6 diagnostic plots
+- `mock_sf_covariance_v2.py` — Core functions; ready to import into your pipeline
+
+**Documentation:**
+- `BLOCK_BOOTSTRAP_GUIDE.md` — 2-page quick reference for implementation
+- `BOOTSTRAP_ANALYSIS.md` — 70+ page technical reference with theory, root cause analysis, and alternatives
+
+**Key plots:**
+- `plots/fig_sensitivity_*.png` — Block size vs. lag-0 variance and variance RMSE
+- `plots/fig_block_*.png` — Epoch vs. block bootstrap comparison (6 diagnostic plots)
+- `plots/fig_boot_*.png` — Epoch bootstrap baseline (reference)
+
+### Further Details
+
+See **BLOCK_BOOTSTRAP_GUIDE.md** for:
+- Step-by-step implementation
+- How to choose block size for your cadence
+- Troubleshooting common issues
+
+See **BOOTSTRAP_ANALYSIS.md** for:
+- Complete theory and justification
+- Root cause analysis of epoch bootstrap failure
+- Alternative methods (residual bootstrap, pooled covariance)
+- References to literature (Künsch 1989, Lahiri 1999, etc.)
+
+---
+
 ## Files & Usage
 
-### Scripts (all ready to run)
+### Part 1: Model Fitting Scripts (all ready to run)
 
 #### Single Covariance Example
 ```bash
@@ -120,11 +197,42 @@ python multigroup_demo.py           # Single realization with block structure
 python multigroup_monte_carlo.py    # 100 realizations + 2 diagnostic plots
 ```
 
+### Part 2: Bootstrap SF Covariance Scripts (all ready to run)
+
+#### Find Optimal Block Size for Your Data
+```bash
+python test_block_size_sensitivity.py
+# Tests B ∈ {5, 10, 15, 20, 25, 30, 35, 40}
+# Outputs: 3 sensitivity plots, recommends optimal B
+# For this mock data: B=40 is optimal (lag-0 ratio 1.32×)
+```
+
+#### Validate Epoch vs. Block Bootstrap Comparison
+```bash
+python test_block_bootstrap.py
+# Compares epoch vs. block bootstrap
+# Outputs: 6 diagnostic plots + detailed metrics
+# Run this with your chosen B to validate on your data
+```
+
+#### Use in Your Pipeline
+```python
+from mock_sf_covariance_v2 import bootstrap_sf_covariance_block
+
+# In your analysis code:
+B = 40  # adjust based on your cadence
+cov_boot, mean_A, A_boot = bootstrap_sf_covariance_block(
+    times, mags, lags, lag_width, n_bootstrap=500, rng, block_size=B
+)
+```
+
 ### Generated Plots
 
 All plots are saved to the `plots/` subdirectory.
 
-#### Single Covariance (6 plots in `plots/`)
+#### Part 1: Model Fitting (13 plots)
+
+**Single Covariance (6 plots)**
 | File | Content |
 |------|---------|
 | `plots/fig_fits.png` | Data + best-fit lines with 1σ bands |
@@ -134,7 +242,7 @@ All plots are saved to the `plots/` subdirectory.
 | `plots/fig_mc_distributions.png` | Parameter distributions from 100 realizations |
 | `plots/fig_mc_chisq.png` | χ²/dof distributions |
 
-#### Multi-Group (7 plots in `plots/`)
+**Multi-Group (7 plots)**
 | File | Content |
 |------|---------|
 | `plots/fig_multigroup_fits.png` | Data (colored by block) + fits |
@@ -144,6 +252,35 @@ All plots are saved to the `plots/` subdirectory.
 | `plots/fig_multigroup_table.png` | Parameter table summary |
 | `plots/fig_multigroup_mc_distributions.png` | Parameter distributions (100 realizations) |
 | `plots/fig_multigroup_mc_chisq.png` | χ²/dof distributions |
+
+#### Part 2: Bootstrap SF Covariance (15 plots)
+
+**Epoch Bootstrap Baseline (6 plots)**
+| File | Content |
+|------|---------|
+| `plots/fig_boot_covariance_heatmaps.png` | True vs. epoch bootstrap covariance matrices |
+| `plots/fig_boot_correlation_matrices.png` | True vs. epoch bootstrap correlation matrices |
+| `plots/fig_boot_eigenvalues.png` | Eigenvalue spectra comparison |
+| `plots/fig_boot_diagonal.png` | Variance profiles (diagonal elements) |
+| `plots/fig_boot_relative_error.png` | Element-wise relative error heatmap |
+| `plots/fig_boot_offdiag_scatter.png` | Off-diagonal correlations: truth vs. estimate |
+
+**Block Bootstrap Validation (6 plots, B=10 shown)**
+| File | Content |
+|------|---------|
+| `plots/fig_block_01_covariance_heatmaps.png` | True vs. epoch vs. block bootstrap covariances |
+| `plots/fig_block_02_correlation_matrices.png` | Correlation structure recovery |
+| `plots/fig_block_03_eigenvalues.png` | Eigenvalue spectrum alignment |
+| `plots/fig_block_04_diagonal.png` | Variance profile comparison |
+| `plots/fig_block_05_lag0_detail.png` | Lag-0 variance detail (critical diagnostic) |
+| `plots/fig_block_06_offdiag_scatter.png` | Off-diagonal correlation scatter |
+
+**Block Size Sensitivity Study (3 plots)**
+| File | Content |
+|------|---------|
+| `plots/fig_sensitivity_lag0.png` | Lag-0 variance ratio vs. block size B |
+| `plots/fig_sensitivity_var_rmse.png` | Variance RMSE vs. block size B |
+| `plots/fig_sensitivity_variance_profile.png` | Variance profiles: best vs. worst block sizes |
 
 ---
 
